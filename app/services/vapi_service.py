@@ -11,6 +11,7 @@ class VapiService:
     def __init__(self):
         self.api_key = settings.vapi_api_key
         self.phone_number_id = settings.vapi_phone_number_id
+        self.assistant_id = settings.vapi_assistant_id
         self.base_url = "https://api.vapi.ai"
 
     def _validate_phone_number_id(self) -> None:
@@ -47,40 +48,79 @@ class VapiService:
         }
 
         # Vapi call payload
-        # Based on Vapi API v2 structure
-        payload = {
-            "phoneNumberId": self.phone_number_id,
-            "customer": {
-                "number": phone_number,
-            },
-            "assistant": {
-                "firstMessage": message,
-                "model": {
-                    "provider": "openai",
-                    "model": "gpt-3.5-turbo",
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": f"You are calling to deliver a reminder. Say this message clearly and concisely: {message}",
-                        },
-                    ],
+        # Option 1: Use assistantId if configured (recommended)
+        # Option 2: Use inline assistant configuration
+        if self.assistant_id:
+            # Use pre-configured assistant (recommended approach)
+            payload = {
+                "phoneNumberId": self.phone_number_id,
+                "customer": {
+                    "number": phone_number,
                 },
-            },
-        }
+                "assistantId": self.assistant_id,
+                "assistantOverrides": {
+                    "firstMessage": message,
+                },
+            }
+            logger.info(f"Using assistantId: {self.assistant_id}")
+        else:
+            # Use inline assistant configuration
+            payload = {
+                "phoneNumberId": self.phone_number_id,
+                "customer": {
+                    "number": phone_number,
+                },
+                "assistant": {
+                    "firstMessage": message,
+                    "model": {
+                        "provider": "openai",
+                        "model": "gpt-3.5-turbo",
+                        "temperature": 0.7,
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": f"You are calling to deliver a reminder. Say this message clearly and concisely: '{message}'. Be brief and professional.",
+                            },
+                        ],
+                    },
+                    "voice": {
+                        "provider": "11labs",
+                        "voiceId": "21m00Tcm4TlvDq8ikWAM",
+                    },
+                },
+            }
+            logger.info("Using inline assistant configuration")
+        
+        logger.info(f"Call payload (sanitized): phoneNumberId={self.phone_number_id}, customer={phone_number}")
 
         try:
             logger.info(f"Creating Vapi call for reminder {reminder_id} to {phone_number}")
+            logger.info(f"Using phone number ID: {self.phone_number_id}")
+            
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    f"{self.base_url}/call",
-                    headers=headers,
-                    json=payload,
-                )
-                response.raise_for_status()
-                data = response.json()
-                call_id = data.get("id")
-                logger.info(f"Vapi call created successfully. Call ID: {call_id}")
-                return call_id
+                # Try /calls endpoint (plural) first, fallback to /call
+                endpoints = [f"{self.base_url}/calls", f"{self.base_url}/call"]
+                
+                for endpoint in endpoints:
+                    try:
+                        logger.info(f"Attempting to create call via {endpoint}")
+                        response = await client.post(
+                            endpoint,
+                            headers=headers,
+                            json=payload,
+                        )
+                        response.raise_for_status()
+                        data = response.json()
+                        call_id = data.get("id")
+                        logger.info(f"✓ Vapi call created successfully via {endpoint}")
+                        logger.info(f"✓ Call ID: {call_id}")
+                        logger.info(f"✓ Full response: {data}")
+                        return call_id
+                    except httpx.HTTPStatusError as e:
+                        if endpoint == endpoints[-1]:  # Last endpoint, re-raise
+                            raise
+                        logger.warning(f"Endpoint {endpoint} failed, trying next...")
+                        continue
         except httpx.HTTPStatusError as e:
             error_response = e.response.text
             try:

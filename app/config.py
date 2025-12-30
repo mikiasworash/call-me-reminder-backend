@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     # Vapi
     vapi_api_key: Optional[str] = None
     vapi_phone_number_id: Optional[str] = None
+    vapi_assistant_id: Optional[str] = None  # Optional: Use pre-configured assistant instead of inline
     
     # Twilio (if needed separately)
     twilio_account_sid: Optional[str] = None
