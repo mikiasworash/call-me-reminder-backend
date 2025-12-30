@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import Optional, Union
+import os
 
 
 class Settings(BaseSettings):
@@ -19,8 +20,30 @@ class Settings(BaseSettings):
     port: int = 8000
     environment: str = "development"
     
-    # CORS
-    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    # CORS - can be a string (comma-separated) or list
+    cors_origins: Union[str, list[str]] = "http://localhost:3000,http://127.0.0.1:3000"
+    
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Parse CORS origins from string or return list"""
+        if isinstance(self.cors_origins, str):
+            # Split by comma and strip whitespace
+            origins = [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+            # Add default localhost origins if not present
+            default_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+            for origin in default_origins:
+                if origin not in origins:
+                    origins.append(origin)
+            return origins
+        # If it's already a list, ensure defaults are included
+        if isinstance(self.cors_origins, list):
+            origins = list(self.cors_origins)
+            default_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+            for origin in default_origins:
+                if origin not in origins:
+                    origins.append(origin)
+            return origins
+        return ["http://localhost:3000", "http://127.0.0.1:3000"]
     
     class Config:
         env_file = ".env"

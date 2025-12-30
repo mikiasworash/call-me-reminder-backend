@@ -33,7 +33,7 @@ FastAPI backend for the Call Me Reminder application. Handles reminder CRUD oper
 1. Create a virtual environment:
 
 ```bash
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
@@ -53,7 +53,7 @@ cp .env.example .env
 
 ```env
 VAPI_API_KEY=your_vapi_api_key
-VAPI_PHONE_NUMBER_ID=your_vapi_phone_number_id
+VAPI_PHONE_NUMBER_ID=your_vapi_phone_number_id_uuid
 ```
 
 ### Running the Server
@@ -135,14 +135,14 @@ The scheduler runs in the background and checks for due reminders every minute. 
 
 ## Environment Variables
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `DATABASE_URL` | Database connection string | No | `sqlite:///./reminders.db` |
-| `VAPI_API_KEY` | Vapi API key | Yes | - |
-| `VAPI_PHONE_NUMBER_ID` | Vapi phone number ID | Yes | - |
-| `HOST` | Server host | No | `0.0.0.0` |
-| `PORT` | Server port | No | `8000` |
-| `CORS_ORIGINS` | Allowed CORS origins | No | `http://localhost:3000` |
+| Variable               | Description                | Required | Default                    |
+| ---------------------- | -------------------------- | -------- | -------------------------- |
+| `DATABASE_URL`         | Database connection string | No       | `sqlite:///./reminders.db` |
+| `VAPI_API_KEY`         | Vapi API key               | Yes      | -                          |
+| `VAPI_PHONE_NUMBER_ID` | Vapi phone number ID       | Yes      | -                          |
+| `HOST`                 | Server host                | No       | `0.0.0.0`                  |
+| `PORT`                 | Server port                | No       | `8000`                     |
+| `CORS_ORIGINS`         | Allowed CORS origins       | No       | `http://localhost:3000`    |
 
 ## Project Structure
 
@@ -211,17 +211,19 @@ curl "http://localhost:8000/api/v1/reminders/1"
 ## Troubleshooting
 
 ### Scheduler not running
+
 - Check logs for errors
 - Verify database connection
 - Ensure Vapi credentials are set
 
 ### Calls not being made
+
 - Verify Vapi API key and phone number ID
 - Check Vapi service logs
 - Ensure reminder is in "scheduled" status
 
 ### Database errors
+
 - Check database file permissions
 - Verify DATABASE_URL in .env
 - Try deleting reminders.db to recreate
-

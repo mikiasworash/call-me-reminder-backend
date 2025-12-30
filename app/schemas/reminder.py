@@ -26,8 +26,21 @@ class ReminderBase(BaseModel):
     @classmethod
     def validate_scheduled_at(cls, v: datetime) -> datetime:
         from datetime import timezone
-        if v <= datetime.now(timezone.utc).replace(tzinfo=None):
+        # Handle both timezone-aware and timezone-naive datetimes
+        now = datetime.now(timezone.utc)
+        
+        # If v is timezone-naive, assume it's UTC
+        if v.tzinfo is None:
+            v = v.replace(tzinfo=timezone.utc)
+        
+        # Compare both as timezone-aware
+        if v <= now:
             raise ValueError("Scheduled time must be in the future")
+        
+        # Return as timezone-aware UTC
+        if v.tzinfo is not None:
+            v = v.astimezone(timezone.utc)
+        
         return v
 
 
@@ -59,8 +72,24 @@ class ReminderUpdate(BaseModel):
     @classmethod
     def validate_scheduled_at(cls, v: Optional[datetime]) -> Optional[datetime]:
         from datetime import timezone
-        if v is not None and v <= datetime.now(timezone.utc).replace(tzinfo=None):
+        if v is None:
+            return v
+        
+        # Handle both timezone-aware and timezone-naive datetimes
+        now = datetime.now(timezone.utc)
+        
+        # If v is timezone-naive, assume it's UTC
+        if v.tzinfo is None:
+            v = v.replace(tzinfo=timezone.utc)
+        
+        # Compare both as timezone-aware
+        if v <= now:
             raise ValueError("Scheduled time must be in the future")
+        
+        # Return as timezone-aware UTC
+        if v.tzinfo is not None:
+            v = v.astimezone(timezone.utc)
+        
         return v
 
 

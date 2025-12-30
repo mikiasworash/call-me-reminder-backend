@@ -10,11 +10,16 @@ class ReminderService:
     @staticmethod
     def create(db: Session, reminder: ReminderCreate) -> Reminder:
         """Create a new reminder"""
+        # Convert timezone-aware datetime to UTC naive for storage
+        scheduled_at = reminder.scheduled_at
+        if scheduled_at.tzinfo is not None:
+            scheduled_at = scheduled_at.astimezone(timezone.utc).replace(tzinfo=None)
+        
         db_reminder = Reminder(
             title=reminder.title,
             message=reminder.message,
             phone_number=reminder.phone_number,
-            scheduled_at=reminder.scheduled_at,
+            scheduled_at=scheduled_at,
             timezone=reminder.timezone,
             status="scheduled",
         )
@@ -71,6 +76,13 @@ class ReminderService:
             return None
 
         update_data = reminder_update.model_dump(exclude_unset=True)
+        
+        # Handle timezone-aware datetime conversion for scheduled_at
+        if 'scheduled_at' in update_data and update_data['scheduled_at'] is not None:
+            scheduled_at = update_data['scheduled_at']
+            if scheduled_at.tzinfo is not None:
+                update_data['scheduled_at'] = scheduled_at.astimezone(timezone.utc).replace(tzinfo=None)
+        
         for field, value in update_data.items():
             setattr(db_reminder, field, value)
 
