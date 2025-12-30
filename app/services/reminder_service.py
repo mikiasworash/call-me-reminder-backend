@@ -104,13 +104,32 @@ class ReminderService:
     @staticmethod
     def get_due_reminders(db: Session) -> list[Reminder]:
         """Get reminders that are due (scheduled_at <= now and status is scheduled)"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
         now = datetime.now(timezone.utc).replace(tzinfo=None)
-        return (
+        
+        # Get all scheduled reminders for debugging
+        all_scheduled = db.query(Reminder).filter(Reminder.status == "scheduled").all()
+        logger.info(f"Current UTC time: {now}")
+        logger.info(f"Total scheduled reminders: {len(all_scheduled)}")
+        
+        for reminder in all_scheduled:
+            logger.info(
+                f"Reminder {reminder.id}: scheduled_at={reminder.scheduled_at}, "
+                f"is_due={reminder.scheduled_at <= now}, "
+                f"time_diff={(reminder.scheduled_at - now).total_seconds() / 60:.1f} minutes"
+            )
+        
+        due_reminders = (
             db.query(Reminder)
             .filter(Reminder.scheduled_at <= now)
             .filter(Reminder.status == "scheduled")
             .all()
         )
+        
+        logger.info(f"Found {len(due_reminders)} due reminders")
+        return due_reminders
 
     @staticmethod
     def mark_completed(db: Session, reminder_id: int, vapi_call_id: Optional[str] = None) -> Optional[Reminder]:

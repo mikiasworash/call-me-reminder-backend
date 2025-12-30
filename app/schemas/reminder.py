@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, field_validator
-from datetime import datetime
+from pydantic import BaseModel, Field, field_validator, field_serializer
+from datetime import datetime, timezone
 from typing import Optional
 from phonenumbers import parse, is_valid_number, NumberParseException
 
@@ -106,6 +106,18 @@ class ReminderResponse(BaseModel):
     completed_at: Optional[datetime] = None
     failure_reason: Optional[str] = None
     vapi_call_id: Optional[str] = None
+
+    @field_serializer("scheduled_at", "created_at", "updated_at", "completed_at")
+    def serialize_datetime(self, value: Optional[datetime], _info) -> Optional[str]:
+        """Serialize datetime fields with Z suffix for UTC"""
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            # Naive datetime - assume UTC and add Z
+            return value.isoformat() + 'Z'
+        # Aware datetime - convert to UTC and add Z
+        utc_value = value.astimezone(timezone.utc)
+        return utc_value.isoformat().replace('+00:00', 'Z')
 
     class Config:
         from_attributes = True

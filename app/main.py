@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_db
 from app.api.routes import reminders, health
+from app.api.routes import debug
 from app.scheduler.reminder_scheduler import start_scheduler, stop_scheduler
 
 # Initialize database
@@ -51,6 +52,7 @@ app.add_middleware(
 # Include routers
 app.include_router(reminders.router, prefix="/api/v1")
 app.include_router(health.router, prefix="/api/v1")
+app.include_router(debug.router, prefix="/api/v1")
 
 
 @app.get("/")

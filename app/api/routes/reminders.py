@@ -101,3 +101,47 @@ async def delete_reminder(
     if not success:
         raise HTTPException(status_code=404, detail="Reminder not found")
 
+
+@router.post("/{reminder_id}/trigger", response_model=ReminderSingleResponse)
+async def trigger_reminder(
+    reminder_id: int,
+    db: Session = Depends(get_database),
+):
+    """Manually trigger a reminder (for testing)"""
+    reminder = ReminderService.get_by_id(db, reminder_id)
+    if not reminder:
+        raise HTTPException(status_code=404, detail="Reminder not found")
+    
+    if reminder.status != "scheduled":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Reminder is not scheduled (current status: {reminder.status})"
+        )
+    
+    # Import here to avoid circular imports
+    from app.services.vapi_service import VapiService
+    import asyncio
+    
+    vapi_service = VapiService()
+    
+    try:
+        # Create Vapi call
+        call_id = await vapi_service.create_call(
+            phone_number=reminder.phone_number,
+            message=reminder.message,
+            reminder_id=reminder.id,
+        )
+        
+        # Mark as completed
+        updated_reminder = ReminderService.mark_completed(db, reminder.id, call_id)
+        
+        return ReminderSingleResponse(
+            success=True,
+            data=ReminderResponse.model_validate(updated_reminder),
+            message=f"Reminder triggered successfully. Call ID: {call_id}",
+        )
+    except Exception as e:
+        error_msg = str(e)
+        ReminderService.mark_failed(db, reminder.id, error_msg)
+        raise HTTPException(status_code=500, detail=f"Failed to trigger reminder: {error_msg}")
+
