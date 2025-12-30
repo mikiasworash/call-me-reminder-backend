@@ -1,0 +1,101 @@
+from pydantic import BaseModel, Field, field_validator
+from datetime import datetime
+from typing import Optional
+from phonenumbers import parse, is_valid_number, NumberParseException
+
+
+class ReminderBase(BaseModel):
+    title: str = Field(..., min_length=1, max_length=255)
+    message: str = Field(..., min_length=1, max_length=1000)
+    phone_number: str = Field(..., min_length=1, max_length=20)
+    scheduled_at: datetime
+    timezone: str = Field(..., min_length=1, max_length=50)
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone_number(cls, v: str) -> str:
+        try:
+            parsed = parse(v, None)
+            if not is_valid_number(parsed):
+                raise ValueError("Invalid phone number format")
+            return v
+        except NumberParseException:
+            raise ValueError("Invalid phone number format. Use E.164 format (e.g., +14155552671)")
+
+    @field_validator("scheduled_at")
+    @classmethod
+    def validate_scheduled_at(cls, v: datetime) -> datetime:
+        from datetime import timezone
+        if v <= datetime.now(timezone.utc).replace(tzinfo=None):
+            raise ValueError("Scheduled time must be in the future")
+        return v
+
+
+class ReminderCreate(ReminderBase):
+    pass
+
+
+class ReminderUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=255)
+    message: Optional[str] = Field(None, min_length=1, max_length=1000)
+    phone_number: Optional[str] = Field(None, min_length=1, max_length=20)
+    scheduled_at: Optional[datetime] = None
+    timezone: Optional[str] = Field(None, min_length=1, max_length=50)
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone_number(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        try:
+            parsed = parse(v, None)
+            if not is_valid_number(parsed):
+                raise ValueError("Invalid phone number format")
+            return v
+        except NumberParseException:
+            raise ValueError("Invalid phone number format. Use E.164 format (e.g., +14155552671)")
+
+    @field_validator("scheduled_at")
+    @classmethod
+    def validate_scheduled_at(cls, v: Optional[datetime]) -> Optional[datetime]:
+        from datetime import timezone
+        if v is not None and v <= datetime.now(timezone.utc).replace(tzinfo=None):
+            raise ValueError("Scheduled time must be in the future")
+        return v
+
+
+class ReminderResponse(BaseModel):
+    id: int
+    title: str
+    message: str
+    phone_number: str
+    scheduled_at: datetime
+    timezone: str
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    completed_at: Optional[datetime] = None
+    failure_reason: Optional[str] = None
+    vapi_call_id: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ReminderListResponse(BaseModel):
+    success: bool = True
+    data: list[ReminderResponse]
+    message: Optional[str] = None
+
+
+class ReminderSingleResponse(BaseModel):
+    success: bool = True
+    data: ReminderResponse
+    message: Optional[str] = None
+
+
+class ErrorResponse(BaseModel):
+    success: bool = False
+    error: dict
+    message: Optional[str] = None
+
